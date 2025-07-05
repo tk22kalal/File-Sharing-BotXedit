@@ -23,7 +23,14 @@ from database.database import add_user, del_user, full_userbase, present_user
 
 SECONDS = int(os.getenv("SECONDS", "10"))  # Waiting time before delete
 
-
+async def schedule_deletion(msgs, delay):
+    await asyncio.sleep(delay)
+    for msg in msgs:
+        try:
+            await msg.delete()
+        except Exception as e:
+            print(f"Error deleting message: {e}")
+            
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
 async def start_command(client: Client, message: Message):
     id = message.from_user.id
@@ -71,8 +78,8 @@ async def start_command(client: Client, message: Message):
             await temp_msg.delete()
 
         replacement_urls = [
-            "https://t.me/mynexty1?",
-            "https://t.me/mynexty1?"
+            "https://t.me/mynexty1_bot?",
+            "https://t.me/mynexty1_bot?"
         ]
 
         snt_msgs = []
