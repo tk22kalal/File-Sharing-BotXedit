@@ -16,6 +16,7 @@ from helper_func import subscribed, encode, decode, get_messages
 from database.database import add_user, del_user, full_userbase, present_user
 
 
+SECONDS = int(os.getenv("SECONDS", "10"))  # Waiting time before delete
 
 
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
@@ -58,32 +59,58 @@ async def start_command(client: Client, message: Message):
         temp_msg = await message.reply("Please wait...")
         try:
             messages = await get_messages(client, ids)
-        except:
+        except Exception:
             await message.reply_text("Something went wrong..!")
             return
-        await temp_msg.delete()
+        finally:
+            await temp_msg.delete()
 
+        replacement_urls = [
+            "https://t.me/mynexty1?",
+            "https://t.me/mynexty1?"
+        ]
+
+        snt_msgs = []
         for msg in messages:
+            if msg.text and "https://t.me/{\"X\"}?" in msg.text:
+                replacement_url = random.choice(replacement_urls)
+                msg.text = msg.text.replace("https://t.me/{\"X\"}?", replacement_url)
+            if msg.caption and "https://t.me/{\"X\"}?" in msg.caption:
+                replacement_url = random.choice(replacement_urls)
+                msg.caption = msg.caption.replace("https://t.me/{\"X\"}?", replacement_url)
 
-            if bool(CUSTOM_CAPTION) & bool(msg.document):
-                caption = CUSTOM_CAPTION.format(previouscaption = "" if not msg.caption else msg.caption.html, filename = msg.document.file_name)
-            else:
-                caption = "" if not msg.caption else msg.caption.html
+            caption = (CUSTOM_CAPTION.format(
+                previouscaption=msg.caption.html if msg.caption else "",
+                filename=msg.document.file_name
+            ) if bool(CUSTOM_CAPTION) and bool(msg.document) else
+            msg.caption.html if msg.caption else "")
 
-            if DISABLE_CHANNEL_BUTTON:
-                reply_markup = msg.reply_markup
-            else:
-                reply_markup = None
+            reply_markup = msg.reply_markup if not DISABLE_CHANNEL_BUTTON else None
 
             try:
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
+                snt_msg = await msg.copy(
+                    chat_id=message.from_user.id,
+                    caption=caption,
+                    parse_mode=ParseMode.HTML,
+                    protect_content=PROTECT_CONTENT,
+                    reply_markup=reply_markup,
+                )
                 await asyncio.sleep(0.5)
+                snt_msgs.append(snt_msg)
             except FloodWait as e:
                 await asyncio.sleep(e.x)
-                await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
-            except:
+                snt_msg = await msg.copy(
+                    chat_id=message.from_user.id,
+                    caption=caption,
+                    parse_mode=ParseMode.HTML,
+                    protect_content=PROTECT_CONTENT,
+                    reply_markup=reply_markup,
+                )
+                snt_msgs.append(snt_msg)
+            except BaseException:
                 pass
-        return
+
+        asyncio.create_task(schedule_deletion(snt_msgs, SECONDS))
     else:
         reply_markup = InlineKeyboardMarkup(
             [
